@@ -50,7 +50,7 @@ foreach ($pressItems AS $pressItem) {
             file_put_contents($cachedItemFile, file_get_contents($pressItem['url']));
         }
         $cachedItem = file_get_contents($cachedItemFile);
-        $pressItem['files'] = array();
+        $pressItemFileStack = array();
         $cachedItemLower = strtolower($cachedItem);
         $pos = strpos($cachedItemLower, '.xls');
         while (false !== $pos) {
@@ -72,15 +72,19 @@ foreach ($pressItems AS $pressItem) {
                 $xlsFile = '/' . $xlsFile;
             }
             $localFile = $resultFolder . '/xls_risk/' . md5($xlsFile) . '.xls';
-            if (!file_exists($localFile)) {
-                file_put_contents($localFile, file_get_contents('http://www.cbc.gov.tw' . $xlsFile));
+            if (!isset($pressItemFileStack[$localFile])) {
+                if (!file_exists($localFile)) {
+                    file_put_contents($localFile, file_get_contents('http://www.cbc.gov.tw' . $xlsFile));
+                }
+                $xlsNote = '';
+                if (filesize($localFile) === 0) {
+                    unlink($localFile);
+                    $xlsNote = '[無法下載]';
+                }
+                fputcsv($fh, array($pressItem['published'], $pressItem['title'], $pressItem['url'], 'http://www.cbc.gov.tw' . $xlsFile . $xlsNote, 'xls_risk/' . md5($xlsFile) . '.xls'));
+                $pressItemFileStack[$localFile] = true;
             }
-            $xlsNote = '';
-            if (filesize($localFile) === 0) {
-                unlink($localFile);
-                $xlsNote = '[無法下載]';
-            }
-            fputcsv($fh, array($pressItem['published'], $pressItem['title'], $pressItem['url'], 'http://www.cbc.gov.tw' . $xlsFile . $xlsNote, 'xls_risk/' . md5($xlsFile) . '.xls'));
+
             $pos = strpos($cachedItemLower, '.xls', $posEnd);
         }
     }
